@@ -27,10 +27,10 @@ class PineconeResultsStorage:
         self.llama_model_path = llama_model_path
 
         results_store_name = results_store_name
-        dimension = 1536 if not self.llm_model.startswith("llama") else 5120
-        metric = "cosine"
-        pod_type = "p1"
+        dimension = 5120 if self.llm_model.startswith("llama") else 1536
         if results_store_name not in pinecone.list_indexes():
+            metric = "cosine"
+            pod_type = "p1"
             pinecone.create_index(
                 results_store_name, dimension=dimension, metric=metric, pod_type=pod_type
             )

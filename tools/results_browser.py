@@ -102,7 +102,7 @@ def main(stdscr):
         stdscr.refresh()
         key = stdscr.getch()
 
-        if key == ord('q') or key == 27:
+        if key in [ord('q'), 27]:
             break
         elif key == curses.KEY_UP and selected > 0:
             selected -= 1

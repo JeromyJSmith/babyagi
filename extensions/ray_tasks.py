@@ -29,7 +29,7 @@ class CooperativeTaskListStorageActor:
         return self.tasks.popleft()
 
     def is_empty(self):
-        return False if self.tasks else True
+        return not self.tasks
 
     def next_task_id(self):
         self.task_id_counter += 1

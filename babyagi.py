@@ -61,24 +61,21 @@ DOTENV_EXTENSIONS = os.getenv("DOTENV_EXTENSIONS", "").split(" ")
 ENABLE_COMMAND_LINE_ARGS = (
     os.getenv("ENABLE_COMMAND_LINE_ARGS", "false").lower() == "true"
 )
-if ENABLE_COMMAND_LINE_ARGS:
-    if can_import("extensions.argparseext"):
-        from extensions.argparseext import parse_arguments
-        OBJECTIVE, INITIAL_TASK, LLM_MODEL, DOTENV_EXTENSIONS, INSTANCE_NAME, COOPERATIVE_MODE, JOIN_EXISTING_OBJECTIVE = parse_arguments()
+if ENABLE_COMMAND_LINE_ARGS and can_import("extensions.argparseext"):
+    from extensions.argparseext import parse_arguments
+    OBJECTIVE, INITIAL_TASK, LLM_MODEL, DOTENV_EXTENSIONS, INSTANCE_NAME, COOPERATIVE_MODE, JOIN_EXISTING_OBJECTIVE = parse_arguments()
 
 # Human mode extension
 # Gives human input to babyagi
-if LLM_MODEL.startswith("human"):
-    if can_import("extensions.human_mode"):
-        from extensions.human_mode import user_input_await
+if LLM_MODEL.startswith("human") and can_import("extensions.human_mode"):
+    from extensions.human_mode import user_input_await
 
 # Load additional environment variables for enabled extensions
 # TODO: This might override the following command line arguments as well:
 #    OBJECTIVE, INITIAL_TASK, LLM_MODEL, INSTANCE_NAME, COOPERATIVE_MODE, JOIN_EXISTING_OBJECTIVE
-if DOTENV_EXTENSIONS:
-    if can_import("extensions.dotenvext"):
-        from extensions.dotenvext import load_dotenv_extensions
-        load_dotenv_extensions(DOTENV_EXTENSIONS)
+if DOTENV_EXTENSIONS and can_import("extensions.dotenvext"):
+    from extensions.dotenvext import load_dotenv_extensions
+    load_dotenv_extensions(DOTENV_EXTENSIONS)
 
 
 # TODO: There's still work to be done here to enable people to get
@@ -103,7 +100,9 @@ if LLM_MODEL.startswith("llama"):
         from llama_cpp import Llama
 
         print(f"LLAMA : {LLAMA_MODEL_PATH}" + "\n")
-        assert os.path.exists(LLAMA_MODEL_PATH), "\033[91m\033[1m" + f"Model can't be found." + "\033[0m\033[0m"
+        assert os.path.exists(LLAMA_MODEL_PATH), (
+            "\033[91m\033[1m" + "Model can't be found." + "\033[0m\033[0m"
+        )
 
         CTX_MAX = 2048
         LLAMA_THREADS_NUM = int(os.getenv("LLAMA_THREADS_NUM", 4))
@@ -229,8 +228,7 @@ class DefaultResultsStorage:
 
 # Initialize results storage
 results_storage = DefaultResultsStorage()
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
-if PINECONE_API_KEY:
+if PINECONE_API_KEY := os.getenv("PINECONE_API_KEY", ""):
     if can_import("extensions.pinecone_storage"):
         PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT", "")
         assert (
@@ -256,7 +254,7 @@ class SingleTaskListStorage:
         return self.tasks.popleft()
 
     def is_empty(self):
-        return False if self.tasks else True
+        return not self.tasks
 
     def next_task_id(self):
         self.task_id_counter += 1
@@ -268,16 +266,13 @@ class SingleTaskListStorage:
 
 # Initialize tasks storage
 tasks_storage = SingleTaskListStorage()
-if COOPERATIVE_MODE in ['l', 'local']:
-    if can_import("extensions.ray_tasks"):
-        import sys
-        from pathlib import Path
-        sys.path.append(str(Path(__file__).resolve().parent))
-        from extensions.ray_tasks import CooperativeTaskListStorage
-        tasks_storage = CooperativeTaskListStorage(OBJECTIVE)
-        print("\nReplacing tasks storage: " + "\033[93m\033[1m" +  "Ray" + "\033[0m\033[0m")
-elif COOPERATIVE_MODE in ['d', 'distributed']:
-    pass
+if COOPERATIVE_MODE in ['l', 'local'] and can_import("extensions.ray_tasks"):
+    import sys
+    from pathlib import Path
+    sys.path.append(str(Path(__file__).resolve().parent))
+    from extensions.ray_tasks import CooperativeTaskListStorage
+    tasks_storage = CooperativeTaskListStorage(OBJECTIVE)
+    print("\nReplacing tasks storage: " + "\033[93m\033[1m" +  "Ray" + "\033[0m\033[0m")
 
 
 def limit_tokens_from_string(string: str, model: str, limit: int) -> str:
@@ -442,10 +437,7 @@ def context_agent(query: str, top_results_num: int):
         list: A list of tasks as context for the given query, sorted by relevance.
 
     """
-    results = results_storage.query(query=query, top_results_num=top_results_num)
-    # print("***** RESULTS *****")
-    # print(results)
-    return results
+    return results_storage.query(query=query, top_results_num=top_results_num)
 
 # Add the initial task if starting new objective
 if not JOIN_EXISTING_OBJECTIVE:
@@ -455,14 +447,14 @@ if not JOIN_EXISTING_OBJECTIVE:
     }
     tasks_storage.append(initial_task)
 
-def main ():
+def main():
     while True:
         # As long as there are tasks in the storage...
         if not tasks_storage.is_empty():
             # Print the task list
             print("\033[95m\033[1m" + "\n*****TASK LIST*****\n" + "\033[0m\033[0m")
             for t in tasks_storage.get_task_names():
-                print(" • "+t)
+                print(f" • {t}")
 
             # Step 1: Pull the first incomplete task
             task = tasks_storage.popleft()
@@ -478,7 +470,7 @@ def main ():
             # This is where you should enrich the result if needed
             enriched_result = {
                 "data": result
-            }  
+            }
             # extract the actual result from the dictionary
             # since we don't do enrichment currently
             vector = enriched_result["data"]  
