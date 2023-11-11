@@ -19,7 +19,7 @@
   "dependencies": {
     "chromadb": "^1.4.1",
     "dotenv": "^16.0.3",
-    "openai": "^3.2.1",
+    "openai": "^4.17.4",
     "prompt-sync": "^4.2.0"
   }
 }
